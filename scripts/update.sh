@@ -1,0 +1,183 @@
+#!/bin/bash
+set -euo pipefail
+
+# founder-stack upstream updater
+# Pulls latest from ECC and gstack, shows diff, applies with confirmation
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+UPSTREAM_FILE="$REPO_ROOT/.upstream"
+DRY_RUN=false
+ECC_ONLY=false
+GSTACK_ONLY=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=true ;;
+    --ecc-only) ECC_ONLY=true ;;
+    --gstack-only) GSTACK_ONLY=true ;;
+    --help|-h)
+      echo "Usage: ./scripts/update.sh [--dry-run] [--ecc-only] [--gstack-only]"
+      echo "  --dry-run      Show changes without applying"
+      echo "  --ecc-only     Only update ECC components"
+      echo "  --gstack-only  Only update gstack components"
+      exit 0
+      ;;
+  esac
+done
+
+# Read current tracked SHAs
+ECC_SHA=$(grep "^ecc=" "$UPSTREAM_FILE" | cut -d= -f2)
+GSTACK_SHA=$(grep "^gstack=" "$UPSTREAM_FILE" | cut -d= -f2)
+
+echo "founder-stack updater"
+echo "====================="
+echo "Current ECC:    ${ECC_SHA:0:12}"
+echo "Current gstack: ${GSTACK_SHA:0:12}"
+echo ""
+
+TMPDIR=$(mktemp -d)
+trap "rm -rf $TMPDIR" EXIT
+
+ECC_CHANGES=0
+GSTACK_CHANGES=0
+
+# --- ECC ---
+if [ "$GSTACK_ONLY" = false ]; then
+  echo "Fetching ECC upstream..."
+  git clone --quiet --depth=100 https://github.com/affaan-m/everything-claude-code "$TMPDIR/ecc" 2>/dev/null || {
+    echo "ERROR: Failed to clone ECC. Check network."
+    exit 1
+  }
+
+  ECC_NEW_SHA=$(cd "$TMPDIR/ecc" && git rev-parse HEAD)
+  if [ "$ECC_SHA" = "$ECC_NEW_SHA" ]; then
+    echo "  ECC: already up to date ($ECC_SHA)"
+  else
+    echo ""
+    echo "=== ECC changes (${ECC_SHA:0:8}..${ECC_NEW_SHA:0:8}) ==="
+    cd "$TMPDIR/ecc"
+    git log --oneline "$ECC_SHA".."$ECC_NEW_SHA" 2>/dev/null | head -30
+    ECC_CHANGES=$(git log --oneline "$ECC_SHA".."$ECC_NEW_SHA" 2>/dev/null | wc -l | tr -d ' ')
+    echo "  ($ECC_CHANGES new commits)"
+    cd "$REPO_ROOT"
+  fi
+fi
+
+# --- gstack ---
+if [ "$ECC_ONLY" = false ]; then
+  echo ""
+  echo "Fetching gstack upstream..."
+  git clone --quiet --depth=100 https://github.com/obedier/obstack "$TMPDIR/gstack" 2>/dev/null || {
+    echo "ERROR: Failed to clone gstack. Check network."
+    exit 1
+  }
+
+  GSTACK_NEW_SHA=$(cd "$TMPDIR/gstack" && git rev-parse HEAD)
+  if [ "$GSTACK_SHA" = "$GSTACK_NEW_SHA" ]; then
+    echo "  gstack: already up to date ($GSTACK_SHA)"
+  else
+    echo ""
+    echo "=== gstack changes (${GSTACK_SHA:0:8}..${GSTACK_NEW_SHA:0:8}) ==="
+    cd "$TMPDIR/gstack"
+    git log --oneline "$GSTACK_SHA".."$GSTACK_NEW_SHA" 2>/dev/null | head -30
+    GSTACK_CHANGES=$(git log --oneline "$GSTACK_SHA".."$GSTACK_NEW_SHA" 2>/dev/null | wc -l | tr -d ' ')
+    echo "  ($GSTACK_CHANGES new commits)"
+    cd "$REPO_ROOT"
+  fi
+fi
+
+# --- Summary ---
+TOTAL_CHANGES=$((ECC_CHANGES + GSTACK_CHANGES))
+echo ""
+echo "Summary: $TOTAL_CHANGES new commits ($ECC_CHANGES ECC, $GSTACK_CHANGES gstack)"
+
+if [ "$TOTAL_CHANGES" -eq 0 ]; then
+  echo "Nothing to update."
+  exit 0
+fi
+
+if [ "$DRY_RUN" = true ]; then
+  echo ""
+  echo "(dry run — no changes applied)"
+  exit 0
+fi
+
+# --- Confirm ---
+echo ""
+read -p "Apply updates? [y/N] " confirm
+if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+  echo "Aborted."
+  exit 0
+fi
+
+# --- Apply ECC ---
+if [ "$GSTACK_ONLY" = false ] && [ "$ECC_CHANGES" -gt 0 ]; then
+  echo ""
+  echo "Applying ECC updates..."
+  ECC_SRC="$TMPDIR/ecc"
+
+  # Copy ECC components (skip skills/gstack and skills/kit-*)
+  cp -R "$ECC_SRC/agents"/*.md "$REPO_ROOT/agents/" 2>/dev/null || true
+  cp -R "$ECC_SRC/rules" "$REPO_ROOT/"
+
+  # Commands: copy all EXCEPT our custom orchestrate and update
+  for cmd in "$ECC_SRC/commands"/*.md; do
+    cmd_name=$(basename "$cmd")
+    if [ "$cmd_name" != "orchestrate.md" ] && [ "$cmd_name" != "update.md" ]; then
+      cp "$cmd" "$REPO_ROOT/commands/"
+    fi
+  done
+
+  # Skills: copy ECC skills, skip anything that would overwrite gstack or kit-*
+  for skill_dir in "$ECC_SRC/skills"/*/; do
+    skill_name=$(basename "$skill_dir")
+    case "$skill_name" in
+      gstack|kit-*|remote-trainer) continue ;;  # Don't overwrite our native skills
+    esac
+    mkdir -p "$REPO_ROOT/skills/$skill_name"
+    cp -R "$skill_dir"* "$REPO_ROOT/skills/$skill_name/" 2>/dev/null || true
+  done
+
+  # Hooks, scripts, manifests
+  cp -R "$ECC_SRC/hooks"/* "$REPO_ROOT/hooks/" 2>/dev/null || true
+  cp -R "$ECC_SRC/scripts/hooks"/* "$REPO_ROOT/scripts/hooks/" 2>/dev/null || true
+  cp -R "$ECC_SRC/scripts/lib"/* "$REPO_ROOT/scripts/lib/" 2>/dev/null || true
+  cp -R "$ECC_SRC/manifests"/* "$REPO_ROOT/manifests/" 2>/dev/null || true
+
+  # Update SHA
+  sed -i '' "s/^ecc=.*/ecc=$ECC_NEW_SHA/" "$UPSTREAM_FILE"
+  echo "  ECC updated to ${ECC_NEW_SHA:0:12}"
+fi
+
+# --- Apply gstack ---
+if [ "$ECC_ONLY" = false ] && [ "$GSTACK_CHANGES" -gt 0 ]; then
+  echo ""
+  echo "Applying gstack updates..."
+  GSTACK_SRC="$TMPDIR/gstack"
+
+  # Copy gstack contents (preserve local binary)
+  for item in "$GSTACK_SRC"/*/; do
+    item_name=$(basename "$item")
+    case "$item_name" in
+      node_modules|.git|dist) continue ;;
+    esac
+    mkdir -p "$REPO_ROOT/skills/gstack/$item_name"
+    cp -R "$item"* "$REPO_ROOT/skills/gstack/$item_name/" 2>/dev/null || true
+  done
+  # Copy top-level files
+  for f in "$GSTACK_SRC"/*.md "$GSTACK_SRC"/*.json "$GSTACK_SRC"/setup "$GSTACK_SRC"/VERSION; do
+    [ -f "$f" ] && cp "$f" "$REPO_ROOT/skills/gstack/"
+  done
+
+  # Update SHA
+  sed -i '' "s/^gstack=.*/gstack=$GSTACK_NEW_SHA/" "$UPSTREAM_FILE"
+  echo "  gstack updated to ${GSTACK_NEW_SHA:0:12}"
+fi
+
+# Update timestamp
+sed -i '' "s/^updated=.*/updated=$(date +%Y-%m-%d)/" "$UPSTREAM_FILE"
+
+echo ""
+echo "Updates applied to founder-stack repo."
+echo "Run ./install.sh to push changes to ~/.claude/"

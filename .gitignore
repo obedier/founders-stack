@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+skills/gstack/node_modules/
+skills/gstack/browse/dist/
+skills/gstack/.git/
+*.env
+*.key
+*.pem
