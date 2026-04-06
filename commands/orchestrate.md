@@ -261,7 +261,12 @@ This step generates a complete specification BEFORE any code is written. Code im
 - Include mermaid diagrams for architecture and data relationships
 - API contracts must include TypeScript types for all request/response bodies
 
-**0c. Run `/blueprint`** on the completed specs to produce a step-by-step execution plan with dependency graph, parallel detection, and cold-start context briefs.
+**0c. Design system selection** — If the project has UI components and no `DESIGN.md` exists in the project root:
+1. Run `/design-reference pick` to recommend design systems matching the project type
+2. If the user selects one, run `/design-reference apply <brand>` to copy it to the project root
+3. The selected design system becomes the visual reference for all frontend agents — no further prompt needed
+
+**0d. Run `/blueprint`** on the completed specs to produce a step-by-step execution plan with dependency graph, parallel detection, and cold-start context briefs.
 
 **Source of truth hierarchy** (when specs conflict):
 1. User's description + clarifying answers (intent is supreme)
@@ -600,7 +605,7 @@ These activate automatically when the context warrants them. You do NOT need to 
 | Task mentions API contracts, OpenAPI, or spec drift | Run `/contract-check` before planning |
 | Task is a large feature (planner says "complex") | Suggest `/plan-eng-review` after the plan for architecture validation |
 | Task mentions product direction, scope, or strategy | Suggest `/plan-ceo-review` for scope challenge |
-| Task has UX implications (new screens, flows, forms) | Suggest `/ux` review after planning, before implementation |
+| Task has UX implications (new screens, flows, forms) | If no `DESIGN.md` in project root, run `/design-reference pick` to select a design system. Then suggest `/ux` review after planning, before implementation |
 
 ### During Step 2 (Implement) — auto-select the right approach
 

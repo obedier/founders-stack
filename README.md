@@ -5,6 +5,7 @@ A consolidated Claude Code configuration that makes AI-assisted development dram
 - **ECC** (Everything Claude Code) -- 30 agents, 136 skills, 60 commands, hooks, and rules
 - **gstack** -- Headless browser QA, structural code review, ship automation, product strategy
 - **Agentic Sprint Kit** -- Spec-first autonomous project builder with multi-agent coordination
+- **awesome-design-md** -- 54 production design systems (Stripe, Linear, Airbnb, Vercel, etc.) for AI-native UI generation
 
 One install. One `/orchestrate` command. Every workflow covered.
 
@@ -23,6 +24,7 @@ One install. One `/orchestrate` command. Every workflow covered.
   - [Security Audit](#security-audit)
   - [QA Pass](#qa-pass)
   - [Custom Workflow](#custom-workflow)
+- [Design Systems (Auto-Injected)](#design-systems-auto-injected)
 - [10x Productivity Patterns](#10x-productivity-patterns)
 - [Keeping It Updated](#keeping-it-updated)
 - [The Skill Catalog](#the-skill-catalog)
@@ -274,6 +276,54 @@ Run any combination of agents in sequence, then pre-landing review and ship. Use
 
 ---
 
+## Design Systems (Auto-Injected)
+
+founder-stack includes 54 complete design systems extracted from real production websites, sourced from [awesome-design-md](https://github.com/VoltAgent/awesome-design-md) (MIT, 14K+ stars). Each provides exact color tokens, typography scales, component specs, layout rules, elevation systems, do's/don'ts, and AI agent prompt guides.
+
+### How It Works
+
+1. **During `/orchestrate feature` or `/orchestrate project`** with UI work, if no `DESIGN.md` exists in the project root, the workflow auto-suggests a matching design system
+2. **Run `/design-reference pick`** to browse and select interactively, or `/design-reference apply stripe` to apply directly
+3. **Once applied**, every agent (planner, tdd-guide, code-reviewer, `/ux`, `/qa`) automatically reads the `DESIGN.md` -- no prompt changes needed
+
+### Available Brands (54)
+
+| Category | Brands |
+|----------|--------|
+| **AI & Developer Tools** | claude, cohere, cursor, elevenlabs, minimax, mistral.ai, ollama, opencode.ai, together.ai, x.ai, composio, voltagent, replicate |
+| **Design & Productivity** | figma, framer, miro, notion, webflow, airtable, cal, mintlify, raycast, warp, superhuman, lovable |
+| **Infrastructure & DevOps** | clickhouse, hashicorp, mongodb, sentry, posthog, sanity, supabase, vercel, expo |
+| **Fintech & Crypto** | stripe, coinbase, kraken, revolut, wise |
+| **Enterprise & Consumer** | airbnb, apple, bmw, ibm, nvidia, spacex, spotify, uber, pinterest, intercom, runwayml, resend, clay, zapier |
+
+### What Each Design System Contains
+
+| Section | Content |
+|---------|---------|
+| Visual Theme & Atmosphere | Brand personality and signature elements |
+| Color Palette & Roles | 20-40 named tokens with hex values |
+| Typography Rules | Full hierarchy with font/size/weight/line-height |
+| Component Stylings | Buttons, cards, inputs, nav with exact specs |
+| Layout Principles | Spacing system, grid, border-radius scale |
+| Depth & Elevation | Multi-level shadow systems |
+| Do's and Don'ts | Explicit guardrails for staying on-brand |
+| Responsive Behavior | Breakpoints, touch targets, collapsing |
+| Agent Prompt Guide | Quick reference + example component prompts |
+
+### Commands
+
+```
+/design-reference                  # list all 54 design systems
+/design-reference pick             # get recommendations for your project
+/design-reference stripe           # view the Stripe design system
+/design-reference apply linear.app # copy to DESIGN.md in project root
+/design-reference compare stripe vercel  # side-by-side comparison
+```
+
+Design systems stay current via `/update` -- new brands are added as the upstream project grows.
+
+---
+
 ## 10x Productivity Patterns
 
 ### 1. Use the Right Slash Commands Directly
@@ -299,7 +349,8 @@ You don't always need `/orchestrate`. These standalone commands are powerful on 
 | `/context-budget` | Analyze context window usage | When sessions feel slow |
 | `/audit` | Dependency and security scan (gstack) | Before releases, after adding deps |
 | `/retro` | Engineering retrospective (gstack) | Weekly team review |
-| `/update` | Pull latest from ECC + gstack upstreams | Staying current |
+| `/design-reference` | Browse and apply 54 production design systems | UI/frontend work |
+| `/update` | Pull latest from ECC + gstack + design-md upstreams | Staying current |
 
 ### 2. Parallel Agent Execution
 
@@ -390,10 +441,11 @@ You can see your context budget with `/context-budget`.
 
 ## Keeping It Updated
 
-founder-stack tracks two upstreams:
+founder-stack tracks three upstreams:
 
 - **ECC**: `github.com/affaan-m/everything-claude-code`
 - **gstack**: `github.com/obedier/obstack`
+- **awesome-design-md**: `github.com/VoltAgent/awesome-design-md`
 
 ### Preview Changes
 
@@ -411,6 +463,12 @@ bash scripts/update.sh --dry-run
 ```bash
 bash scripts/update.sh         # Interactive: shows diff, asks for confirmation
 ./install.sh --skip-gstack-build  # Deploy to ~/.claude/
+```
+
+### Update Only Design Systems
+
+```bash
+bash scripts/update.sh --design-md-only
 ```
 
 ### What's Protected
@@ -446,13 +504,20 @@ Updates never overwrite your custom files:
 | `santa-method` | Dual independent review (both must pass to ship) |
 | `quality-gate` | On-demand quality pipeline |
 
+### Design & UX
+| Skill | Purpose |
+|-------|---------|
+| `design-reference` | Browse and apply 54 production design systems (auto-injected) |
+| `design-system` | Generate or audit design systems from existing code |
+| `ux` | UX review: IA, journeys, states, accessibility |
+| `frontend-design` | Create distinctive, production-grade frontend interfaces |
+
 ### Product Strategy (gstack)
 | Skill | Purpose |
 |-------|---------|
 | `pmf-review` | Product-market fit analysis with validation plan |
 | `plan-ceo-review` | 10-star product thinking, scope challenge |
 | `plan-eng-review` | Execution plan review, edge cases, performance |
-| `ux` | UX review: IA, journeys, states, accessibility |
 | `research` | Company, product, competitor, market dossiers |
 | `product-lens` | Validate "why" before building |
 
@@ -510,6 +575,7 @@ Updates never overwrite your custom files:
 founder-stack/
 ├── agents/          # 30 agent definitions (.md files)
 ├── commands/        # 60+ slash commands (.md files)
+├── design-systems/  # 54 production design systems (.md files, from awesome-design-md)
 ├── rules/           # Layered rules system
 │   ├── common/      # Universal principles (always active)
 │   ├── typescript/   # TS/JS extensions
@@ -518,9 +584,10 @@ founder-stack/
 │   ├── swift/        # Swift extensions
 │   ├── php/          # PHP/Laravel extensions
 │   └── zh/           # Chinese translations
-├── skills/          # 136+ skill directories
+├── skills/          # 148+ skill directories
 │   ├── gstack/      # QA, review, ship, product strategy
 │   ├── kit-*/       # Sprint kit phases
+│   ├── design-reference/  # Design system browser/selector
 │   └── .../         # ECC skills (one dir per skill)
 ├── hooks/           # Hook configurations (hooks.json)
 ├── scripts/
@@ -534,7 +601,7 @@ founder-stack/
 ├── examples/        # Example CLAUDE.md files for different stacks
 ├── install.sh       # Installer
 ├── CLAUDE.md        # Project instructions
-└── .upstream        # Tracked upstream SHAs
+└── .upstream        # Tracked upstream SHAs (ECC + gstack + design-md)
 ```
 
 ### How Agents, Skills, and Hooks Relate
@@ -545,8 +612,9 @@ User types /orchestrate feature "..."
        ▼
   orchestrate.md (command)
        │
+       ├── Checks: DESIGN.md in project root ──► if missing + UI work, suggests /design-reference pick
        ├── Spawns: planner agent ──► produces implementation plan
-       ├── Spawns: tdd-guide agent ──► writes tests, implements
+       ├── Spawns: tdd-guide agent ──► writes tests, implements (using DESIGN.md tokens if present)
        ├── Spawns: typescript-reviewer agent ──► (auto-detected)     ┐
        ├── Spawns: security-reviewer agent ──► (if auth/API touched) ├ parallel
        ├── Spawns: database-reviewer agent ──► (if SQL touched)      ┘

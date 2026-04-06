@@ -18,6 +18,7 @@ Consolidated Claude Code configuration: gstack + ECC + Agentic Sprint Kit.
 | **ECC** | Agents, commands, rules, skills, hooks | 30 agents, 60 commands, 77 rules, 136 skills, 29 hooks |
 | **gstack** | QA, review, ship, browse, product strategy | 17 skills |
 | **Sprint Kit** | Spec-first autonomous project builder | 11 skills + agent docs |
+| **awesome-design-md** | Production design systems for AI agents | 54 brand design systems |
 | **Custom** | Unified orchestrate + progress tracker | /orchestrate, /update, statusline |
 
 ## Workflow Entry Points
@@ -31,6 +32,16 @@ Consolidated Claude Code configuration: gstack + ECC + Agentic Sprint Kit.
 | `/orchestrate hotfix "desc"` | Fast-track fix → ship |
 | `/orchestrate security "desc"` | Security audit |
 | `/orchestrate qa` | QA pass on current branch |
+
+## Design Systems (Auto-Injected)
+
+54 production design systems from real brands (Stripe, Linear, Airbnb, Vercel, etc.) stored in `design-systems/`. When a project has UI work:
+
+1. **Automatic**: During `/orchestrate feature` or `/orchestrate project` with UI, if no `DESIGN.md` exists, the workflow auto-suggests a matching design system
+2. **Manual**: Run `/design-reference pick` to browse and select, or `/design-reference apply stripe` to apply directly
+3. **Zero-prompt**: Once `DESIGN.md` is in the project root, all agents (planner, tdd-guide, code-reviewer, /ux, /qa) automatically read it — no prompt changes needed
+
+The design systems provide exact color tokens, typography scales, component specs, layout rules, do's/don'ts, and AI agent prompt guides. Source: [awesome-design-md](https://github.com/VoltAgent/awesome-design-md) (MIT).
 
 ## Skill Priority
 
@@ -60,8 +71,9 @@ Reference docs in `agent_docs/`:
 
 ## Upstream Tracking
 
-This repo vendors two upstreams tracked in `.upstream`:
+This repo vendors three upstreams tracked in `.upstream`:
 - **ECC**: github.com/affaan-m/everything-claude-code
 - **gstack**: github.com/obedier/obstack
+- **awesome-design-md**: github.com/VoltAgent/awesome-design-md
 
-Run `/update` to pull latest changes. The update never overwrites custom files (orchestrate, sprint kit, agent_docs).
+Run `/update` to pull latest changes. The update never overwrites custom files (orchestrate, sprint kit, agent_docs). Use `--design-md-only` to update only design systems.

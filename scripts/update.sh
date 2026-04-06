@@ -10,17 +10,20 @@ UPSTREAM_FILE="$REPO_ROOT/.upstream"
 DRY_RUN=false
 ECC_ONLY=false
 GSTACK_ONLY=false
+DESIGN_MD_ONLY=false
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
     --ecc-only) ECC_ONLY=true ;;
     --gstack-only) GSTACK_ONLY=true ;;
+    --design-md-only) DESIGN_MD_ONLY=true ;;
     --help|-h)
-      echo "Usage: ./scripts/update.sh [--dry-run] [--ecc-only] [--gstack-only]"
-      echo "  --dry-run      Show changes without applying"
-      echo "  --ecc-only     Only update ECC components"
-      echo "  --gstack-only  Only update gstack components"
+      echo "Usage: ./scripts/update.sh [--dry-run] [--ecc-only] [--gstack-only] [--design-md-only]"
+      echo "  --dry-run          Show changes without applying"
+      echo "  --ecc-only         Only update ECC components"
+      echo "  --gstack-only      Only update gstack components"
+      echo "  --design-md-only   Only update design systems from awesome-design-md"
       exit 0
       ;;
   esac
@@ -29,11 +32,13 @@ done
 # Read current tracked SHAs
 ECC_SHA=$(grep "^ecc=" "$UPSTREAM_FILE" | cut -d= -f2)
 GSTACK_SHA=$(grep "^gstack=" "$UPSTREAM_FILE" | cut -d= -f2)
+DESIGN_MD_SHA=$(grep "^design_md=" "$UPSTREAM_FILE" | cut -d= -f2 || echo "")
 
 echo "founder-stack updater"
 echo "====================="
-echo "Current ECC:    ${ECC_SHA:0:12}"
-echo "Current gstack: ${GSTACK_SHA:0:12}"
+echo "Current ECC:       ${ECC_SHA:0:12}"
+echo "Current gstack:    ${GSTACK_SHA:0:12}"
+echo "Current design-md: ${DESIGN_MD_SHA:0:12}"
 echo ""
 
 TMPDIR=$(mktemp -d)
@@ -41,6 +46,7 @@ trap "rm -rf $TMPDIR" EXIT
 
 ECC_CHANGES=0
 GSTACK_CHANGES=0
+DESIGN_MD_CHANGES=0
 
 # --- ECC ---
 if [ "$GSTACK_ONLY" = false ]; then
@@ -87,10 +93,53 @@ if [ "$ECC_ONLY" = false ]; then
   fi
 fi
 
+# --- awesome-design-md ---
+if [ "$ECC_ONLY" = false ] && [ "$GSTACK_ONLY" = false ]; then
+  echo ""
+  echo "Fetching awesome-design-md upstream..."
+  git clone --quiet --depth=100 https://github.com/VoltAgent/awesome-design-md "$TMPDIR/design-md" 2>/dev/null || {
+    echo "WARNING: Failed to clone awesome-design-md. Skipping."
+  }
+
+  if [ -d "$TMPDIR/design-md" ]; then
+    DESIGN_MD_NEW_SHA=$(cd "$TMPDIR/design-md" && git rev-parse HEAD)
+    if [ "$DESIGN_MD_SHA" = "$DESIGN_MD_NEW_SHA" ]; then
+      echo "  awesome-design-md: already up to date ($DESIGN_MD_SHA)"
+    else
+      echo ""
+      echo "=== awesome-design-md changes (${DESIGN_MD_SHA:0:8}..${DESIGN_MD_NEW_SHA:0:8}) ==="
+      cd "$TMPDIR/design-md"
+      git log --oneline "$DESIGN_MD_SHA".."$DESIGN_MD_NEW_SHA" 2>/dev/null | head -30
+      DESIGN_MD_CHANGES=$(git log --oneline "$DESIGN_MD_SHA".."$DESIGN_MD_NEW_SHA" 2>/dev/null | wc -l | tr -d ' ')
+      echo "  ($DESIGN_MD_CHANGES new commits)"
+      cd "$REPO_ROOT"
+    fi
+  fi
+elif [ "$DESIGN_MD_ONLY" = true ]; then
+  echo "Fetching awesome-design-md upstream..."
+  git clone --quiet --depth=100 https://github.com/VoltAgent/awesome-design-md "$TMPDIR/design-md" 2>/dev/null || {
+    echo "ERROR: Failed to clone awesome-design-md. Check network."
+    exit 1
+  }
+
+  DESIGN_MD_NEW_SHA=$(cd "$TMPDIR/design-md" && git rev-parse HEAD)
+  if [ "$DESIGN_MD_SHA" = "$DESIGN_MD_NEW_SHA" ]; then
+    echo "  awesome-design-md: already up to date ($DESIGN_MD_SHA)"
+  else
+    echo ""
+    echo "=== awesome-design-md changes (${DESIGN_MD_SHA:0:8}..${DESIGN_MD_NEW_SHA:0:8}) ==="
+    cd "$TMPDIR/design-md"
+    git log --oneline "$DESIGN_MD_SHA".."$DESIGN_MD_NEW_SHA" 2>/dev/null | head -30
+    DESIGN_MD_CHANGES=$(git log --oneline "$DESIGN_MD_SHA".."$DESIGN_MD_NEW_SHA" 2>/dev/null | wc -l | tr -d ' ')
+    echo "  ($DESIGN_MD_CHANGES new commits)"
+    cd "$REPO_ROOT"
+  fi
+fi
+
 # --- Summary ---
-TOTAL_CHANGES=$((ECC_CHANGES + GSTACK_CHANGES))
+TOTAL_CHANGES=$((ECC_CHANGES + GSTACK_CHANGES + DESIGN_MD_CHANGES))
 echo ""
-echo "Summary: $TOTAL_CHANGES new commits ($ECC_CHANGES ECC, $GSTACK_CHANGES gstack)"
+echo "Summary: $TOTAL_CHANGES new commits ($ECC_CHANGES ECC, $GSTACK_CHANGES gstack, $DESIGN_MD_CHANGES design-md)"
 
 if [ "$TOTAL_CHANGES" -eq 0 ]; then
   echo "Nothing to update."
@@ -173,6 +222,24 @@ if [ "$ECC_ONLY" = false ] && [ "$GSTACK_CHANGES" -gt 0 ]; then
   # Update SHA
   sed -i '' "s/^gstack=.*/gstack=$GSTACK_NEW_SHA/" "$UPSTREAM_FILE"
   echo "  gstack updated to ${GSTACK_NEW_SHA:0:12}"
+fi
+
+# --- Apply awesome-design-md ---
+if [ "$DESIGN_MD_CHANGES" -gt 0 ] && [ -d "$TMPDIR/design-md" ]; then
+  echo ""
+  echo "Applying awesome-design-md updates..."
+  mkdir -p "$REPO_ROOT/design-systems"
+  for dir in "$TMPDIR/design-md/design-md"/*/; do
+    brand=$(basename "$dir")
+    if [ -f "$dir/DESIGN.md" ]; then
+      cp "$dir/DESIGN.md" "$REPO_ROOT/design-systems/${brand}.md"
+    fi
+  done
+
+  # Update SHA
+  sed -i '' "s/^design_md=.*/design_md=$DESIGN_MD_NEW_SHA/" "$UPSTREAM_FILE"
+  echo "  awesome-design-md updated to ${DESIGN_MD_NEW_SHA:0:12}"
+  echo "  Design systems: $(ls "$REPO_ROOT/design-systems"/*.md 2>/dev/null | wc -l | tr -d ' ') brands"
 fi
 
 # Update timestamp

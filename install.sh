@@ -59,14 +59,18 @@ for f in "$SCRIPT_DIR/scripts"/*.js "$SCRIPT_DIR/scripts"/*.sh; do
   [ -f "$f" ] && cp "$f" "$CLAUDE_DIR/scripts/"
 done
 
-echo "[6/8] Copying agent docs and templates..."
+echo "[6/9] Copying agent docs and templates..."
 mkdir -p "$CLAUDE_DIR/agent_docs"
 cp -R "$SCRIPT_DIR/agent_docs"/*.md "$CLAUDE_DIR/agent_docs/" 2>/dev/null || true
+
+echo "[6.5/9] Copying design systems..."
+mkdir -p "$CLAUDE_DIR/design-systems"
+cp -R "$SCRIPT_DIR/design-systems"/*.md "$CLAUDE_DIR/design-systems/" 2>/dev/null || true
 
 # --- gstack setup ---
 
 if [ "$SKIP_GSTACK_BUILD" = false ] && [ -f "$CLAUDE_DIR/skills/gstack/setup" ]; then
-  echo "[7/8] Building gstack browse binary..."
+  echo "[7/9] Building gstack browse binary..."
   cd "$CLAUDE_DIR/skills/gstack"
   if command -v bun &>/dev/null; then
     bash setup 2>&1 | tail -5
@@ -75,7 +79,7 @@ if [ "$SKIP_GSTACK_BUILD" = false ] && [ -f "$CLAUDE_DIR/skills/gstack/setup" ];
   fi
   cd "$SCRIPT_DIR"
 else
-  echo "[7/8] Skipping gstack build (--skip-gstack-build or no setup script)"
+  echo "[7/9] Skipping gstack build (--skip-gstack-build or no setup script)"
 fi
 
 # --- Create gstack symlinks ---
@@ -97,7 +101,7 @@ cd "$SCRIPT_DIR"
 
 # --- Merge hooks + statusline into settings.json ---
 
-echo "[8/8] Configuring settings.json..."
+echo "[9/9] Configuring settings.json..."
 node -e "
 const fs = require('fs');
 const path = require('path');
@@ -146,10 +150,11 @@ echo ""
 echo "Done! founder-stack installed to $CLAUDE_DIR"
 echo ""
 echo "Installed:"
-echo "  Agents:    $(ls "$CLAUDE_DIR/agents"/*.md 2>/dev/null | wc -l | tr -d ' ')"
-echo "  Commands:  $(ls "$CLAUDE_DIR/commands"/*.md 2>/dev/null | wc -l | tr -d ' ')"
-echo "  Rules:     $(find "$CLAUDE_DIR/rules" -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
-echo "  Skills:    $(ls -d "$CLAUDE_DIR/skills"/*/ 2>/dev/null | wc -l | tr -d ' ')"
-echo "  Agent docs: $(ls "$CLAUDE_DIR/agent_docs"/*.md 2>/dev/null | wc -l | tr -d ' ')"
+echo "  Agents:      $(ls "$CLAUDE_DIR/agents"/*.md 2>/dev/null | wc -l | tr -d ' ')"
+echo "  Commands:    $(ls "$CLAUDE_DIR/commands"/*.md 2>/dev/null | wc -l | tr -d ' ')"
+echo "  Rules:       $(find "$CLAUDE_DIR/rules" -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
+echo "  Skills:      $(ls -d "$CLAUDE_DIR/skills"/*/ 2>/dev/null | wc -l | tr -d ' ')"
+echo "  Design sys:  $(ls "$CLAUDE_DIR/design-systems"/*.md 2>/dev/null | wc -l | tr -d ' ')"
+echo "  Agent docs:  $(ls "$CLAUDE_DIR/agent_docs"/*.md 2>/dev/null | wc -l | tr -d ' ')"
 echo ""
 echo "Start a new Claude Code session to activate."
